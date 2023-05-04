@@ -19,6 +19,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { useMediaQuery } from 'react-responsive';
 import { Elements } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
+import FingerprintJS from '@fingerprintjs/fingerprintjs';
 
 import { auth } from './firebase';
 import useFunctions from './hooks/useFunctions';
@@ -26,6 +27,8 @@ import useFunctions from './hooks/useFunctions';
 import MobilePurchaseModal from './MobilePurchaseModal';
 import ResponseModal from './ResponseModal';
 import WebPurchaseModal from './WebPurchaseModal';
+
+const fpPromise = FingerprintJS.load({ monitoring: false });
 
 const stripePromise = loadStripe(
   // eslint-disable-next-line max-len
@@ -65,14 +68,21 @@ export default function App() {
   useEffect(() => {
     const handleDeviceId = async () => {
       const fetchUUID = await AsyncStorage.getItem('deviceId');
-      const uuid = fetchUUID || uuidv4();
+      let uuid = fetchUUID;
+      if (!uuid && isWeb) {
+        const fp = await fpPromise;
+        const result = await fp.get();
+        uuid = result.visitorId;
+      } else if (!uuid) {
+        uuid = uuidv4();
+      }
       setDeviceId(uuid);
       if (!fetchUUID) {
-        await AsyncStorage.setItem('deviceId', JSON.stringify(uuid));
+        await AsyncStorage.setItem('deviceId', uuid);
       }
     };
     handleDeviceId();
-  }, []);
+  }, [isWeb]);
 
   useEffect(() => {
     const checkAuth = setInterval(async () => {
@@ -333,7 +343,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
     paddingHorizontal: 10,
-    outline: 'none',
   },
   generateButton: {
     backgroundColor: '#7892c2',
@@ -342,7 +351,6 @@ const styles = StyleSheet.create({
     height: 50,
     borderRadius: 5,
     marginTop: 20,
-    outline: 'none',
   },
   disabledButton: {
     opacity: 0.2,
