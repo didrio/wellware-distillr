@@ -17,12 +17,20 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
 import { useMediaQuery } from 'react-responsive';
+import { Elements } from '@stripe/react-stripe-js';
+import { loadStripe } from '@stripe/stripe-js';
 
 import { auth } from './firebase';
 import useFunctions from './hooks/useFunctions';
 
 import MobilePurchaseModal from './MobilePurchaseModal';
+import ResponseModal from './ResponseModal';
 import WebPurchaseModal from './WebPurchaseModal';
+
+const stripePromise = loadStripe(
+  // eslint-disable-next-line max-len
+  'pk_live_51KgBVWJcXRHOrRKCIm21Hqp5S4UjElr0aWGz9ptqZXxtPaGY2mASfS9SQzrhBUzu1pJUunXvjbL7IeHKauYqDc8h001H9nwG4i'
+);
 
 const isValidUrl = (urlString) => {
   const urlPattern = new RegExp(
@@ -118,6 +126,11 @@ export default function App() {
     }
   };
 
+  const handleCloseResponse = () => {
+    setResponse('');
+    setPercent('');
+  };
+
   useEffect(() => {
     signInAnonymously(auth);
   }, []);
@@ -128,7 +141,13 @@ export default function App() {
 
   return (
     <View style={styles.container}>
-      <View style={[styles.contentContainer, isWeb && !isMobileWeb && styles.webContentContainer]}>
+      <View
+        style={[
+          styles.contentContainer,
+          isWeb && !isMobileWeb && styles.webContentContainer,
+          isWeb && response && styles.webResponse,
+        ]}
+      >
         <StatusBar backgroundColor="#333540" barStyle="light-content" />
         {isPro === null ? (
           <View style={styles.loadingContainer}>
@@ -152,14 +171,18 @@ export default function App() {
                   </View>
                 ) : null}
               </View>
-              <Text style={styles.label}>Paste Link Below:</Text>
+              <View>
+                <Text style={styles.taglineText}>
+                  A ChatGPT-powered tool that gives a concise summary of any URL provided.
+                </Text>
+              </View>
               <View style={styles.inputContainer}>
                 <TextInput
                   onChangeText={onChangeUrl}
                   value={url}
                   style={styles.input}
                   placeholderTextColor="#888"
-                  placeholder="Enter URL Address"
+                  placeholder="Paste Link Here"
                 />
                 <TouchableOpacity
                   onPress={clearDisabled ? null : clearInput}
@@ -187,17 +210,13 @@ export default function App() {
                   </TouchableOpacity>
                 </View>
               )}
-              {percent ? (
-                <View style={styles.percentContainer}>
-                  <Text
-                    style={styles.percent}
-                  >{`Distilled to ${percent}% the length of the original.`}</Text>
-                </View>
-              ) : null}
               {response ? (
-                <View style={styles.responseContainer}>
-                  <Text style={styles.response}>{response}</Text>
-                </View>
+                <ResponseModal
+                  isMobileWeb={isMobileWeb}
+                  onClose={handleCloseResponse}
+                  percent={percent}
+                  response={response}
+                />
               ) : null}
               {isPro ? null : (
                 <View style={styles.nonProContainer}>
@@ -219,13 +238,15 @@ export default function App() {
         )}
         {modalVisible ? (
           isWeb ? (
-            <WebPurchaseModal
-              deviceId={deviceId}
-              onClose={() => {
-                setModalVisible(!modalVisible);
-              }}
-              visible={modalVisible}
-            />
+            <Elements stripe={stripePromise}>
+              <WebPurchaseModal
+                deviceId={deviceId}
+                onClose={() => {
+                  setModalVisible(!modalVisible);
+                }}
+                visible={modalVisible}
+              />
+            </Elements>
           ) : (
             <MobilePurchaseModal
               deviceId={deviceId}
@@ -237,6 +258,10 @@ export default function App() {
           )
         ) : null}
       </View>
+      <Text style={styles.policyText}>
+        No Data Collection Policy - We value your privacy. We want to assure you that our app,
+        Distillr, does not collect, use, or share any personal data or information from its users.
+      </Text>
     </View>
   );
 }
@@ -246,28 +271,27 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#333540',
     alignItems: 'center',
+    justifyContent: 'center',
     width: '100%',
   },
   contentContainer: {
     width: '100%',
   },
   webContentContainer: {
-    marginTop: 50,
     width: 600,
+    marginTop: -200,
   },
   scrollContainer: {
     padding: 20,
-    paddingBottom: 60,
   },
   view: {
     flex: 1,
-    marginTop: 65,
   },
   headerContainer: {
-    marginBottom: 60,
+    marginBottom: 15,
   },
   header: {
-    color: '#D1D5DA',
+    color: '#fff',
     fontSize: 60,
     alignSelf: 'center',
   },
@@ -275,16 +299,11 @@ const styles = StyleSheet.create({
     display: 'flex',
     width: '100%',
     alignItems: 'center',
-    transform: 'translateY(-10px)',
+    transform: 'translateY(-5px)',
   },
   proLabel: {
     color: '#FBE69E',
     fontSize: 17,
-  },
-  label: {
-    color: '#D1D5DA',
-    fontSize: 12,
-    marginBottom: 10,
   },
   inputContainer: {
     flexDirection: 'row',
@@ -298,6 +317,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     height: 45,
     borderRadius: 5,
+    outlineColor: '#fff',
   },
   clearButton: {
     backgroundColor: '#7892c2',
@@ -306,12 +326,14 @@ const styles = StyleSheet.create({
     height: 45,
     borderRadius: 5,
     marginLeft: 10,
+    outlineColor: '#fff',
   },
   clearButtonText: {
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: 'bold',
     paddingHorizontal: 10,
+    outline: 'none',
   },
   generateButton: {
     backgroundColor: '#7892c2',
@@ -320,6 +342,7 @@ const styles = StyleSheet.create({
     height: 50,
     borderRadius: 5,
     marginTop: 20,
+    outline: 'none',
   },
   disabledButton: {
     opacity: 0.2,
@@ -331,27 +354,6 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 17,
     fontWeight: 'bold',
-  },
-  percentContainer: {
-    marginTop: 10,
-    padding: 15,
-    borderRadius: 5,
-  },
-  responseContainer: {
-    marginTop: 10,
-    padding: 15,
-    borderRadius: 5,
-    backgroundColor: '#444654',
-  },
-  response: {
-    color: '#D1D5DA',
-    fontSize: 14,
-  },
-  percent: {
-    color: '#D1D5DA',
-    fontSize: 14,
-    fontWeight: 'bold',
-    textAlign: 'center',
   },
   errorText: {
     color: '#f1322D',
@@ -367,13 +369,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   activityIndicator: {
-    marginTop: 40,
+    transform: 'translateY(-140px)',
   },
   webActivityIndicator: {
     marginTop: 300,
   },
   activityIndicatorDistill: {
-    marginTop: 30,
+    marginTop: 50,
   },
   nonProContainer: {
     marginTop: 10,
@@ -408,5 +410,19 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 17,
     fontWeight: 'bold',
+  },
+  policyText: {
+    color: '#fff',
+    fontSize: 13,
+    textAlign: 'center',
+    position: 'fixed',
+    bottom: 10,
+    padding: 10,
+  },
+  taglineText: {
+    color: '#fff',
+    fontSize: 13,
+    textAlign: 'center',
+    marginBottom: 30,
   },
 });

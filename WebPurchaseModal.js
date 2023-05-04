@@ -1,13 +1,16 @@
 import React from 'react';
 import { Text, View, StyleSheet, Pressable, Modal } from 'react-native';
 
+import PaymentForm from './PaymentForm';
+
 export default function WebPurchaseModal({ deviceId, onClose, visible }) {
-  console.log('deviceId', deviceId);
   return (
     <Modal animationType="fade" transparent={true} visible={visible} onRequestClose={onClose}>
       <View style={styles.centeredView}>
         <View style={styles.modalView}>
-          <Text>WEB PURCHASE!</Text>
+          <View>
+            <PaymentForm deviceId={deviceId} />
+          </View>
           <View style={styles.closeContainer}>
             <Pressable style={styles.buttonClose} onPress={onClose}>
               <Text style={styles.closeTextStyle}>X</Text>
@@ -36,7 +39,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     shadowColor: '#000',
     elevation: 5,
-    width: '80%',
+    height: 400,
+    width: 400,
     position: 'relative',
   },
   buttonClose: {
