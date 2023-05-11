@@ -3,13 +3,16 @@ import { Text, View, StyleSheet, Pressable, Modal } from 'react-native';
 
 import PaymentForm from './PaymentForm';
 
-export default function WebPurchaseModal({ deviceId, onClose, visible }) {
+export default function WebPurchaseModal({ clientSecret, deviceId, onClose, visible }) {
   return (
     <Modal animationType="fade" transparent={true} visible={visible} onRequestClose={onClose}>
       <View style={styles.centeredView}>
         <View style={styles.modalView}>
+          <Text style={styles.headerText}>Purchase Distillr Pro for $4.99</Text>
+          <Text style={styles.p1Text}>Use Distillr up to 15 times a day.</Text>
+          <Text style={styles.p2Text}>One-time lifetime purchase, no subscription required.</Text>
           <View>
-            <PaymentForm deviceId={deviceId} />
+            <PaymentForm clientSecret={clientSecret} deviceId={deviceId} onClose={onClose} />
           </View>
           <View style={styles.closeContainer}>
             <Pressable style={styles.buttonClose} onPress={onClose}>
@@ -23,11 +26,27 @@ export default function WebPurchaseModal({ deviceId, onClose, visible }) {
 }
 
 const styles = StyleSheet.create({
+  headerText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+    marginBottom: 30,
+    marginTop: 20,
+  },
+  p1Text: {
+    color: '#fff',
+    fontSize: 14,
+    marginBottom: 10,
+  },
+  p2Text: {
+    color: '#fff',
+    fontSize: 14,
+    marginBottom: 40,
+  },
   centeredView: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 22,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   modalView: {
@@ -39,9 +58,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     shadowColor: '#000',
     elevation: 5,
-    height: 400,
     width: 400,
     position: 'relative',
+    color: '#fff',
   },
   buttonClose: {
     justifyContent: 'center',

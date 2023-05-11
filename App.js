@@ -20,6 +20,7 @@ import { useMediaQuery } from 'react-responsive';
 import { Elements } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
 import FingerprintJS from '@fingerprintjs/fingerprintjs';
+import Constants from 'expo-constants';
 
 import { auth } from './firebase';
 import useFunctions from './hooks/useFunctions';
@@ -30,10 +31,11 @@ import WebPurchaseModal from './WebPurchaseModal';
 
 const fpPromise = FingerprintJS.load({ monitoring: false });
 
-const stripePromise = loadStripe(
-  // eslint-disable-next-line max-len
-  'pk_live_51KgBVWJcXRHOrRKCIm21Hqp5S4UjElr0aWGz9ptqZXxtPaGY2mASfS9SQzrhBUzu1pJUunXvjbL7IeHKauYqDc8h001H9nwG4i'
-);
+const isLiveEnvironment = Constants.manifest.extra.IS_LIVE_ENVIRONMENT;
+const stripePublishableKey = isLiveEnvironment
+  ? Constants.manifest.extra.STRIPE_PUBLISHABLE_KEY_LIVE
+  : Constants.manifest.extra.STRIPE_PUBLISHABLE_KEY_TEST;
+const stripePromise = loadStripe(stripePublishableKey);
 
 const isValidUrl = (urlString) => {
   const urlPattern = new RegExp(
@@ -58,12 +60,23 @@ export default function App() {
   const [remaining, setRemaining] = useState(null);
   const [deviceId, setDeviceId] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const [clientSecret, setClientSecret] = useState('');
 
   const { callFunction } = useFunctions();
 
   const isWeb = Platform.OS === 'web';
   const isMobile = useMediaQuery({ query: '(max-width: 600px)' });
   const isMobileWeb = isWeb && isMobile;
+
+  useEffect(() => {
+    const handlePaymentIntent = async () => {
+      const { clientSecret } = await callFunction('createPaymentIntent', { isLiveEnvironment });
+      setClientSecret(clientSecret);
+    };
+    if (!clientSecret) {
+      handlePaymentIntent();
+    }
+  }, [callFunction, clientSecret]);
 
   useEffect(() => {
     const handleDeviceId = async () => {
@@ -85,17 +98,14 @@ export default function App() {
   }, [isWeb]);
 
   useEffect(() => {
-    const checkAuth = setInterval(async () => {
+    const checkAuth = async () => {
       if (deviceId && auth.currentUser) {
         const result = await callFunction('checkUserStatus', { deviceId });
         setIsPro(result.isPro);
         setRemaining(result.remaining);
-        clearInterval(checkAuth);
       }
-    }, 1000);
-    return () => {
-      clearInterval(checkAuth);
     };
+    checkAuth();
   }, [deviceId, callFunction]);
 
   const onChangeUrl = (value) => {
@@ -149,6 +159,14 @@ export default function App() {
   const clearDisabled = !url;
   const disabled = !isValidUrl(url) || isLoading || isOutOfUses;
 
+  const stripeAppearance = {
+    theme: 'stripe',
+  };
+  const stripeOptions = {
+    clientSecret,
+    appearance: stripeAppearance,
+  };
+
   return (
     <View style={styles.container}>
       <View
@@ -163,7 +181,7 @@ export default function App() {
           <View style={styles.loadingContainer}>
             <ActivityIndicator
               size="large"
-              color="#ffffff"
+              color="#fff"
               style={[styles.activityIndicator, isWeb && styles.webActivityIndicator]}
             />
           </View>
@@ -239,17 +257,18 @@ export default function App() {
                     onPress={() => setModalVisible(true)}
                     style={styles.getProButton}
                   >
-                    <Text style={styles.getProButtonText}>Get PRO</Text>
+                    <Text style={styles.getProButtonText}>Get Pro</Text>
                   </TouchableOpacity>
                 </View>
               )}
             </View>
           </KeyboardAwareScrollView>
         )}
-        {modalVisible ? (
+        {modalVisible && clientSecret ? (
           isWeb ? (
-            <Elements stripe={stripePromise}>
+            <Elements options={stripeOptions} stripe={stripePromise}>
               <WebPurchaseModal
+                clientSecret={clientSecret}
                 deviceId={deviceId}
                 onClose={() => {
                   setModalVisible(!modalVisible);
@@ -314,6 +333,7 @@ const styles = StyleSheet.create({
   proLabel: {
     color: '#FBE69E',
     fontSize: 17,
+    fontWeight: 600,
   },
   inputContainer: {
     flexDirection: 'row',
